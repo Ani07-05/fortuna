@@ -1,0 +1,8 @@
+{
+  "short_name": "Finance Predictor",
+  "name": "Personal Finance Savings Predictor",
+  "start_url": ".",
+  "display": "standalone",
+  "theme_color": "#000000",
+  "background_color": "#ffffff"
+}

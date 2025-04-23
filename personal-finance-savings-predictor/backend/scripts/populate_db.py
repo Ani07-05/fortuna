@@ -1,3 +1,4 @@
+# backend/scripts/populate_db.py
 import sqlite3
 import random
 from datetime import datetime, timedelta

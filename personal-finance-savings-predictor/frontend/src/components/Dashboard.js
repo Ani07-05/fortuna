@@ -38,7 +38,7 @@ function Dashboard({ userId }) {
     recentTrends: []
   });
 
-  const API_URL = 'http://localhost:5000/api';
+  const API_URL = '/api'; // Ensure this is the relative path
 
   useEffect(() => {
     // Fetch user transactions

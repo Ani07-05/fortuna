@@ -11,6 +11,59 @@ import seaborn as sns
 import os
 import logging
 
+"""
+Personal Finance Savings Predictor Model Documentation
+
+Overview:
+--------
+This module implements a machine learning system that predicts potential savings
+across different expense categories based on user demographics and spending patterns.
+
+Model Architecture:
+------------------
+- Type: Ensemble of Random Forest Regressors (one per expense category)
+- Features: Demographic data (age, dependents, occupation) and expense categories
+- Targets: Potential savings in each expense category
+- Pipeline: Data standardization followed by RandomForest regression
+
+Data Processing:
+---------------
+1. Data Loading: CSV input with financial and demographic information
+2. Preprocessing: 
+   - Removing income and loan-related columns
+   - Converting categorical features (occupation) to one-hot encoding
+   - Handling missing values via mean imputation
+   
+3. Feature Engineering:
+   - Demographic features (Age, Dependents, Occupation)
+   - Expense categories (Groceries, Transport, etc.)
+
+Model Training:
+--------------
+- A separate model is trained for each expense category
+- Data is split 80/20 for training and testing
+- Features are standardized before training
+- Each RandomForest uses 100 trees with default hyperparameters
+
+Prediction Process:
+-----------------
+Given a user's demographic information and current expenses, the model predicts
+potential savings in each expense category based on patterns learned from the dataset.
+
+Performance Metrics:
+------------------
+- Mean Squared Error (MSE): Measures prediction accuracy
+- R² Score: Indicates how well the model explains the variance in potential savings
+- Feature importance: Identifies which factors most influence savings potential
+
+Visualization:
+------------
+The model generates visualizations for:
+1. Model performance metrics
+2. Feature importance for each expense category
+3. Distribution of actual expenses vs. potential savings
+"""
+
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

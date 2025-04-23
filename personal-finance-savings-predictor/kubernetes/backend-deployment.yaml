@@ -1,0 +1,45 @@
+# kubernetes/backend-deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-deployment
+spec:
+  replicas: 1 # Start with one replica
+  selector:
+    matchLabels:
+      app: backend
+  template:
+    metadata:
+      labels:
+        app: backend
+    spec:
+      containers:
+      - name: backend
+        # Use the specific image digest to ensure the correct version is pulled
+        image: the7thdialect/personal-finance-backend:latest # Updated image tag
+        ports:
+        - containerPort: 5000
+        volumeMounts:
+        - name: db-storage
+          mountPath: /app/data # Mount the persistent volume here
+        # Add environment variables if needed, e.g., database connection strings
+        # env:
+        # - name: DATABASE_URL
+        #   value: "your_database_connection_string"
+        # Add readiness and liveness probes for better health checking
+        readinessProbe:
+          httpGet:
+            path: /api/health
+            port: 5000
+          initialDelaySeconds: 15
+          periodSeconds: 10
+        livenessProbe:
+          httpGet:
+            path: /api/health
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 20
+      volumes:
+      - name: db-storage
+        persistentVolumeClaim:
+          claimName: backend-db-pvc # Reference the PVC

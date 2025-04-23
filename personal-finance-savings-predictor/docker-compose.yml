@@ -1,0 +1,35 @@
+# docker-compose.yml
+
+services:
+  backend:
+    image: the7thdialect/personal-finance-backend:latest
+    container_name: backend-compose
+    ports:
+      - "5000:5000" # Expose backend port 5000
+    volumes:
+      - backend_data:/app/data # Persist data like in the PVC
+    networks:
+      - app-network
+
+  frontend:
+    image: the7thdialect/personal-finance-frontend:latest
+    container_name: frontend-compose
+    ports:
+      - "8080:80" # Expose frontend on host port 8080 (container port 80)
+    depends_on:
+      - backend # Wait for backend to be available (basic check)
+    environment:
+      # Assuming your frontend needs to know the backend URL
+      # Adjust the variable name if your frontend uses a different one (e.g., VITE_API_URL)
+      - REACT_APP_API_URL=http://backend:5000
+    networks:
+      - app-network
+
+volumes:
+  backend_data:
+    # Define the volume for backend data persistence
+
+networks:
+  app-network:
+    # Define the network for services to communicate
+    driver: bridge

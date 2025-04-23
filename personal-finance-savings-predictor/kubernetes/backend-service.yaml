@@ -1,0 +1,13 @@
+# kubernetes/backend-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-service
+spec:
+  selector:
+    app: backend # Selects pods with the label 'app: backend'
+  ports:
+    - protocol: TCP
+      port: 5000 # Port the service will listen on
+      targetPort: 5000 # Port the container is listening on
+  type: ClusterIP # Exposes the service on a cluster-internal IP

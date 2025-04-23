@@ -14,6 +14,28 @@ class APITests(unittest.TestCase):
         self.app = app.test_client()
         self.app.testing = True
 
+    # Test T023: Test that Always Fails
+    def test_always_fail(self):
+        """This test is designed to always fail through logical assertion.
+        
+        How this test fails:
+        1. The /api/health endpoint always returns {"status": "healthy", ...}
+        2. Our test asserts that the status should be "unhealthy"
+        3. Since "healthy" != "unhealthy", the assertEqual assertion fails
+        4. When running the test suite, you'll see:
+           - An AssertionError
+           - Expected: "unhealthy"
+           - Actual: "healthy"
+           - The message "This test expects 'unhealthy' status which will never happen"
+        
+        This demonstrates how test failures are reported in the test runner.
+        """
+        response = self.app.get('/api/health')
+        response_data = json.loads(response.data)
+        # Impossible condition - the status will never be "unhealthy" in a health check
+        self.assertEqual(response_data['status'], "unhealthy", 
+                         "This test expects 'unhealthy' status which will never happen")
+
     # Test T001: Health Check
     def test_health_check(self):
         response = self.app.get('/api/health')

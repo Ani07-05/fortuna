@@ -20,8 +20,8 @@ services:
       - backend # Wait for backend to be available (basic check)
     environment:
       # Assuming your frontend needs to know the backend URL
-      # Adjust the variable name if your frontend uses a different one (e.g., VITE_API_URL)
-      - REACT_APP_API_URL=http://backend:5000
+      # Adjust the variable name if your frontend uses a different one (e.g., VITE_apiURL)
+      - REACT_APP_apiURL=http://backend:5000
     networks:
       - app-network
 

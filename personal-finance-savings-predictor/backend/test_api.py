@@ -210,3 +210,48 @@ class APITests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+import requests
+import json
+
+BASE_URL = "http://localhost:5000"
+
+def test_health_endpoint():
+    """Test the health check endpoint"""
+    response = requests.get(f"{BASE_URL}/api/health")
+    print(f"Health Check: Status Code {response.status_code}")
+    if response.status_code == 200:
+        print(json.dumps(response.json(), indent=2))
+    else:
+        print(f"Error: {response.text}")
+    print("-" * 50)
+
+def test_transactions_endpoint():
+    """Test fetching transactions for a user"""
+    response = requests.get(f"{BASE_URL}/api/transactions/user123")
+    print(f"Transactions: Status Code {response.status_code}")
+    if response.status_code == 200:
+        data = response.json()
+        print(f"Found {len(data)} transactions")
+        if data:
+            print("First transaction:", json.dumps(data[0], indent=2))
+    else:
+        print(f"Error: {response.text}")
+    print("-" * 50)
+
+def test_profile_endpoint():
+    """Test fetching user profile"""
+    response = requests.get(f"{BASE_URL}/api/profile/user123")
+    print(f"Profile: Status Code {response.status_code}")
+    if response.status_code == 200:
+        print(json.dumps(response.json(), indent=2))
+    else:
+        print(f"Error: {response.text}")
+    print("-" * 50)
+
+if __name__ == "__main__":
+    print("Testing API endpoints...")
+    test_health_endpoint()
+    test_transactions_endpoint()
+    test_profile_endpoint()
+    print("API tests complete")

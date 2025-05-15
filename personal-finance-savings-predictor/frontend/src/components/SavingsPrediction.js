@@ -24,6 +24,9 @@ ChartJS.register(
   Legend
 );
 
+// Base URL for API calls - direct connection to backend
+const API_BASE_URL = 'http://localhost:5000/api';
+
 function SavingsPrediction({ userId }) {
   const [predictions, setPredictions] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -31,16 +34,44 @@ function SavingsPrediction({ userId }) {
   const [hasProfile, setHasProfile] = useState(true);
   const [hasTransactions, setHasTransactions] = useState(true);
 
-  const API_URL = '/api'; // Ensure this is the relative path;
+  // Retry logic for API calls
+  const fetchWithRetry = async (url, maxRetries = 3) => {
+    let retries = 0;
+    
+    while (retries < maxRetries) {
+      try {
+        console.log(`Attempting to fetch from ${url}, attempt ${retries + 1} of ${maxRetries}`);
+        return await axios.get(url, {
+          timeout: 10000, // 10 second timeout
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+      } catch (error) {
+        retries++;
+        console.error(`Attempt ${retries} failed:`, error.message);
+        
+        if (retries === maxRetries) {
+          throw error;
+        }
+        
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+      }
+    }
+  };
 
   useEffect(() => {
     // Check if user has a profile
     const checkUserProfile = async () => {
       try {
-        await axios.get(`${API_URL}/profile/${userId}`);
+        console.log(`Checking profile for user: ${userId}`);
+        await fetchWithRetry(`${API_BASE_URL}/profile/${userId}`);
         setHasProfile(true);
         return true;
       } catch (err) {
+        console.error('Profile check failed:', err.message);
         if (err.response && err.response.status === 404) {
           setHasProfile(false);
           setLoading(false);
@@ -53,11 +84,13 @@ function SavingsPrediction({ userId }) {
     // Check if user has transactions
     const checkUserTransactions = async () => {
       try {
-        const response = await axios.get(`${API_URL}/transactions/${userId}`);
+        console.log(`Checking transactions for user: ${userId}`);
+        const response = await fetchWithRetry(`${API_BASE_URL}/transactions/${userId}`);
         const hasData = response.data && response.data.length > 0;
         setHasTransactions(hasData);
         return hasData;
       } catch (err) {
+        console.error('Transactions check failed:', err.message);
         setHasTransactions(false);
         setLoading(false);
         return false;
@@ -67,24 +100,29 @@ function SavingsPrediction({ userId }) {
     // Fetch predictions if profile and transactions exist
     const fetchPredictions = async () => {
       try {
+        setLoading(true);
+        setError(null);
+        
         const profileExists = await checkUserProfile();
         if (!profileExists) return;
         
         const transactionsExist = await checkUserTransactions();
         if (!transactionsExist) return;
         
-        const response = await axios.get(`${API_URL}/predict/${userId}`);
+        console.log(`Fetching predictions for user: ${userId}`);
+        const response = await fetchWithRetry(`${API_BASE_URL}/predict/${userId}`);
+        console.log('Predictions response received:', response.status);
         setPredictions(response.data);
         setLoading(false);
       } catch (err) {
-        setError('Failed to fetch predictions. Please try again later.');
-        setLoading(false);
         console.error('Error fetching predictions:', err);
+        setError(`Failed to fetch predictions: ${err.message || 'Unknown error'}`);
+        setLoading(false);
       }
     };
 
     fetchPredictions();
-  }, [userId, API_URL]);
+  }, [userId]);
 
   // Prepare chart data if predictions exist
   const prepareChartData = () => {
@@ -127,6 +165,23 @@ function SavingsPrediction({ userId }) {
     return { comparisonData, savingsPercentageData };
   };
 
+  // Verify backend connection
+  const checkBackendConnection = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/health`);
+      if (response.data.status === 'healthy') {
+        window.location.reload();
+      } else {
+        setError('Backend is responding but reports unhealthy status. Please check server logs.');
+        setLoading(false);
+      }
+    } catch (err) {
+      setError('Backend connection check failed. Make sure Flask is running on port 5000.');
+      setLoading(false);
+    }
+  };
+
   if (!hasProfile) {
     return (
       <div className="prediction-error">
@@ -147,8 +202,23 @@ function SavingsPrediction({ userId }) {
     );
   }
 
-  if (loading) return <div className="loading">Loading predictions...</div>;
-  if (error) return <div className="error-message">{error}</div>;
+  if (loading) return (
+    <div className="loading-container">
+      <div className="loading">Loading predictions...</div>
+      <p>Connecting to backend server at {API_BASE_URL}...</p>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="error-container">
+      <div className="error-message">{error}</div>
+      <div className="error-actions">
+        <button onClick={checkBackendConnection} className="btn btn-primary">Retry</button>
+        <p>Make sure your Flask backend is running on port 5000</p>
+        <p><small>Technical details: Connection to {API_BASE_URL} failed</small></p>
+      </div>
+    </div>
+  );
 
   const chartData = prepareChartData();
 

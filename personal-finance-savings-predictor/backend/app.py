@@ -15,7 +15,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)  # Enable CORS for all routes
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 # Path to the directory containing trained models
 MODEL_DIR = './models/models'  # Updated to point to the correct subdirectory
@@ -153,13 +153,13 @@ def add_transaction():
 # Route to get user transactions
 @app.route('/api/transactions/<user_id>', methods=['GET'])
 def get_transactions(user_id):
+    print(f"Fetching transactions for user {user_id}")
     try:
         # Get optional date filters
         start_date = request.args.get('start_date')
         end_date = request.args.get('end_date')
         
         transactions = data_processor.get_user_transactions(user_id, start_date, end_date)
-        
         return jsonify(transactions)
     
     except Exception as e:

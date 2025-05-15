@@ -14,7 +14,7 @@ function UserProfile({ userId }) {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  const API_URL = 'http://localhost:5000/api';
+  const apiURL = 'http://localhost:5000/api';
 
   // Occupation options
   const occupations = ['Salaried', 'Business', 'Freelancer', 'Student', 'Retired'];
@@ -24,7 +24,7 @@ function UserProfile({ userId }) {
     const fetchUserProfile = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_URL}/profile/${userId}`);
+        const response = await axios.get(`${apiURL}/profile/${userId}`);
         
         // Update form with existing profile data
         setFormData({
@@ -47,7 +47,7 @@ function UserProfile({ userId }) {
     };
 
     fetchUserProfile();
-  }, [userId, API_URL]);
+  }, [userId, apiURL]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -77,7 +77,7 @@ function UserProfile({ userId }) {
       }
 
       // Submit profile to the API
-      await axios.post(`${API_URL}/profile`, {
+      await axios.post(`${apiURL}/profile`, {
         user_id: userId,
         age: formData.age,
         dependents: formData.dependents,

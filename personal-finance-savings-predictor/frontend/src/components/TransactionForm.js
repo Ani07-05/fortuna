@@ -15,7 +15,7 @@ function TransactionForm({ userId }) {
   const [success, setSuccess] = useState(false);
   const [quickInput, setQuickInput] = useState('');
 
-  const API_URL = 'http://localhost:5000/api';
+  const apiURL = 'http://localhost:5000/api';
 
   // Predefined expense categories
   const categories = [
@@ -49,7 +49,7 @@ function TransactionForm({ userId }) {
       }
 
       // Submit transaction to the API
-      await axios.post(`${API_URL}/transactions`, {
+      await axios.post(`${apiURL}/transactions`, {
         user_id: userId,
         category: formData.category,
         amount: formData.amount,
@@ -83,7 +83,7 @@ function TransactionForm({ userId }) {
     if (!quickInput.trim()) return;
     
     try {
-      const response = await axios.post(`${API_URL}/parse-transaction`, {
+      const response = await axios.post(`${apiURL}/parse-transaction`, {
         text: quickInput
       });
       

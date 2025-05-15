@@ -28,9 +28,12 @@ ChartJS.register(
   Legend
 );
 
+// Base URL for API calls - direct connection to backend
+const API_BASE_URL = 'http://localhost:5000/api';
+
 function Dashboard({ userId }) {
   const [transactions, setTransactions] = useState([]);
-  // Removing unused trendData state variable
+  const [trendData, setTrendData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [summaryData, setSummaryData] = useState({
@@ -38,36 +41,86 @@ function Dashboard({ userId }) {
     recentTrends: []
   });
 
-  const API_URL = '/api'; // Ensure this is the relative path
+  // Retry logic for API calls
+  const fetchWithRetry = async (url, maxRetries = 3) => {
+    let retries = 0;
+    
+    while (retries < maxRetries) {
+      try {
+        console.log(`Attempting to fetch from ${url}, attempt ${retries + 1} of ${maxRetries}`);
+        return await axios.get(url, {
+          timeout: 10000, // 10 second timeout
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          }
+        });
+      } catch (error) {
+        retries++;
+        console.error(`Attempt ${retries} failed:`, error.message);
+        
+        if (retries === maxRetries) {
+          throw error;
+        }
+        
+        // Wait before retrying (exponential backoff)
+        await new Promise(resolve => setTimeout(resolve, 1000 * retries));
+      }
+    }
+  };
 
   useEffect(() => {
-    // Fetch user transactions
-    const fetchTransactions = async () => {
+    const fetchData = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`${API_URL}/transactions/${userId}`);
-        setTransactions(response.data);
+        setError(null);
+        console.log(`Fetching transactions for user: ${userId}`);
         
-        // Process data for charts
-        processTransactionData(response.data);
+        // Fetch transactions with direct URL
+        let transactionsData = [];
+        try {
+          const response = await fetchWithRetry(`${API_BASE_URL}/transactions/${userId}`);
+          console.log('Transactions response received:', response.status);
+          transactionsData = response.data;
+          setTransactions(transactionsData);
+        } catch (txError) {
+          console.error('Failed to fetch transactions:', txError);
+          throw new Error(`Couldn't load transactions: Request failed with status code ${txError.response?.status || 'unknown'}`);
+        }
         
-        // Also fetch spending trends
-        const trendResponse = await axios.get(`${API_URL}/spending-trends/${userId}`);
-        // Use the trend data directly in the processTransactionData function
-        // or remove if not needed
+        // Fetch spending trends (if this fails, we'll still show dashboard with transaction data only)
+        try {
+          const trendResponse = await fetchWithRetry(`${API_BASE_URL}/spending-trends/${userId}`);
+          console.log('Trends response received:', trendResponse.status);
+          setTrendData(trendResponse.data);
+          
+          // Process all data
+          processTransactionData(transactionsData, trendResponse.data);
+        } catch (trendError) {
+          console.warn('Could not fetch trend data, using transactions for trends calculation:', trendError);
+          // Still process transactions even if trends API fails
+          processTransactionData(transactionsData);
+        }
         
         setLoading(false);
       } catch (err) {
-        setError('Failed to fetch data. Please try again later.');
+        console.error('Error in data fetching:', err);
+        setError(`${err.message || 'Failed to connect to the server'}. Please check if the backend is running.`);
         setLoading(false);
-        console.error('Error fetching data:', err);
       }
     };
 
-    fetchTransactions();
-  }, [userId, API_URL]);
+    fetchData();
+  }, [userId]);
 
-  const processTransactionData = (transactionsData) => {
+  const processTransactionData = (transactionsData, trendsData = null) => {
+    if (!transactionsData || transactionsData.length === 0) {
+      console.warn('No transaction data available for processing');
+      return;
+    }
+    
+    console.log(`Processing ${transactionsData.length} transactions`);
+    
     // Group by category
     const byCategory = transactionsData.reduce((acc, transaction) => {
       const { category, amount } = transaction;
@@ -79,20 +132,30 @@ function Dashboard({ userId }) {
     }, {});
 
     // Create recent trends (last 7 days)
-    const today = new Date();
-    const last7Days = new Array(7).fill(0).map((_, i) => {
-      const date = new Date(today);
-      date.setDate(date.getDate() - i);
-      return date.toISOString().slice(0, 10); // Format as YYYY-MM-DD
-    }).reverse();
+    let recentTrends = [];
+    
+    // If we have trend data from the API, use it
+    if (trendsData && trendsData.daily_spending) {
+      console.log('Using API trend data');
+      recentTrends = trendsData.daily_spending;
+    } else {
+      console.log('Calculating trends from transaction data');
+      // Calculate it from transactions
+      const today = new Date();
+      const last7Days = new Array(7).fill(0).map((_, i) => {
+        const date = new Date(today);
+        date.setDate(date.getDate() - i);
+        return date.toISOString().slice(0, 10); // Format as YYYY-MM-DD
+      }).reverse();
 
-    const recentTrends = last7Days.map(date => {
-      const dayTotal = transactionsData
-        .filter(t => t.date === date)
-        .reduce((sum, t) => sum + t.amount, 0);
-      
-      return { date, amount: dayTotal };
-    });
+      recentTrends = last7Days.map(date => {
+        const dayTotal = transactionsData
+          .filter(t => t.date === date)
+          .reduce((sum, t) => sum + t.amount, 0);
+        
+        return { date, amount: dayTotal };
+      });
+    }
 
     setSummaryData({ byCategory, recentTrends });
   };
@@ -125,8 +188,40 @@ function Dashboard({ userId }) {
     ]
   };
 
-  if (loading) return <div className="loading">Loading dashboard data...</div>;
-  if (error) return <div className="error-message">{error}</div>;
+  // Verify backend connection
+  const checkBackendConnection = async () => {
+    try {
+      setLoading(true);
+      const response = await axios.get(`${API_BASE_URL}/health`);
+      if (response.data.status === 'healthy') {
+        window.location.reload();
+      } else {
+        setError('Backend is responding but reports unhealthy status. Please check server logs.');
+        setLoading(false);
+      }
+    } catch (err) {
+      setError('Backend connection check failed. Make sure Flask is running on port 5000.');
+      setLoading(false);
+    }
+  };
+
+  if (loading) return (
+    <div className="loading-container">
+      <div className="loading">Loading dashboard data...</div>
+      <p>Connecting to backend server at {API_BASE_URL}...</p>
+    </div>
+  );
+  
+  if (error) return (
+    <div className="error-container">
+      <div className="error-message">{error}</div>
+      <div className="error-actions">
+        <button onClick={checkBackendConnection} className="btn btn-primary">Retry</button>
+        <p>Make sure your Flask backend is running on port 5000</p>
+        <p><small>Technical details: Connection to {API_BASE_URL} failed</small></p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="dashboard">
